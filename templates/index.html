@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Crypto Price Monitor</title>
+    <style>
+      /* 保持原样的样式 */
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f9;
+        padding: 20px;
+      }
+      h1 {
+        color: #333;
+      }
+      .container {
+        width: 100%;
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      .form-container {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+      .form-container div {
+        width: 30%;
+      }
+      label {
+        font-weight: bold;
+        display: block;
+        margin-bottom: 5px;
+      }
+      select,
+      button {
+        width: 100%;
+        padding: 10px;
+        font-size: 16px;
+        margin-top: 5px;
+      }
+      .table-container {
+        margin-top: 30px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 12px;
+        text-align: center;
+        border: 1px solid #ddd;
+      }
+      th {
+        background-color: #4caf50;
+        color: white;
+      }
+      tr:nth-child(even) {
+        background-color: #f2f2f2;
+      }
+      .gain {
+        color: green;
+        font-weight: bold;
+      }
+      .loss {
+        color: red;
+        font-weight: bold;
+      }
+      .history-container {
+        margin-top: 40px;
+      }
+      .history-container h3 {
+        color: #333;
+      }
+      .history-container ul {
+        list-style-type: none;
+        padding: 0;
+      }
+      .history-container li {
+        background-color: #f9f9f9;
+        padding: 10px;
+        margin-bottom: 5px;
+        border: 1px solid #ddd;
+      }
+    </style>
+
+    <!-- 引入jQuery库 -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Crypto Price Monitor</h1>
+
+      <h2>涨幅榜</h2>
+      <div class="form-container">
+        <div>
+          <label for="gain-time-range">选择时间范围：</label>
+          <select id="gain-time-range" name="gain-time-range">
+            <option value="1">1分钟</option>
+            <option value="1">2分钟</option>
+            <option value="3">3分钟</option>
+            <option value="5">5分钟</option>
+            <option value="15">15分钟</option>
+          </select>
+        </div>
+        <div>
+          <label for="gain-change-threshold">选择涨幅范围：</label>
+          <select id="gain-change-threshold" name="gain-change-threshold">
+            <option value="2">1%</option>
+            <option value="2">2%</option>
+            <option value="2">3%</option>
+
+            <option value="4">4%</option>
+            <option value="4">5%</option>
+
+            <option value="6">6%</option>
+            <option value="8">8%</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-container" id="gain-table">
+        <!-- 自动填充涨幅榜数据 -->
+      </div>
+
+      <h2>跌幅榜</h2>
+      <div class="form-container">
+        <div>
+          <label for="loss-time-range">选择时间范围：</label>
+          <select id="loss-time-range" name="loss-time-range">
+            <option value="1">1分钟</option>
+            <option value="1">2分钟</option>
+
+            <option value="3">3分钟</option>
+            <option value="5">5分钟</option>
+            <option value="15">15分钟</option>
+          </select>
+        </div>
+        <div>
+          <label for="loss-change-threshold">选择跌幅范围：</label>
+          <select id="loss-change-threshold" name="loss-change-threshold">
+            <option value="2">1%</option>
+            <option value="2">2%</option>
+            <option value="2">3%</option>
+
+            <option value="4">4%</option>
+            <option value="4">5%</option>
+
+            <option value="6">6%</option>
+            <option value="8">8%</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-container" id="loss-table">
+        <!-- 自动填充跌幅榜数据 -->
+      </div>
+
+      <div class="history-container">
+        <h3>历史搜索</h3>
+        <ul id="history-list">
+          <!-- 历史搜索内容 -->
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      // AJAX 请求获取数据，调用 /crypto-prices 接口，并将选项参数发送给后端
+      function fetchCryptoData() {
+        let gainTimeRange = $("#gain-time-range").val(); // 例如 "5"
+        let gainChangeThreshold = $("#gain-change-threshold").val(); // 例如 "2"
+        let lossTimeRange = $("#loss-time-range").val(); // 例如 "5"
+        let lossChangeThreshold = $("#loss-change-threshold").val(); // 例如 "2"
+
+        $.ajax({
+          url: "/crypto-prices",
+          method: "GET",
+          data: {
+            gain_time_range: gainTimeRange,
+            gain_change_threshold: gainChangeThreshold,
+            loss_time_range: lossTimeRange,
+            loss_change_threshold: lossChangeThreshold,
+          },
+          success: function (response) {
+            console.log("API 响应数据：", response);
+
+            // 如果涨幅数据为空，则显示提示信息
+            if (!response.high_gains || response.high_gains.length === 0) {
+              $("#gain-table").html(
+                "<div style='text-align:center; font-size:24px; color:#d9534f; font-weight:bold; padding:20px;'>市场如湖水一般平静！</div>"
+              );
+            } else {
+              // 如果有涨幅数据，构建显示结果表格
+              let gainResultHtml = "<h3>涨幅榜</h3>";
+              gainResultHtml +=
+                "<table border='1'><tr><th>币种</th><th>涨幅 (%)</th><th>时间范围</th></tr>";
+              response.high_gains.forEach(function (item) {
+                gainResultHtml += `<tr><td>${item[0]}</td><td>${item[1].toFixed(
+                  2
+                )}</td><td>${item[2]}</td></tr>`;
+              });
+              gainResultHtml += "</table>";
+              $("#gain-table").html(gainResultHtml);
+            }
+
+            // 如果跌幅数据为空，则显示提示信息
+            if (!response.low_losses || response.low_losses.length === 0) {
+              $("#loss-table").html(
+                "<div style='text-align:center; font-size:24px; color:#d9534f; font-weight:bold; padding:20px;'>市场如湖水一般平静！</div>"
+              );
+            } else {
+              // 如果有跌幅数据，构建显示结果表格
+              let lossResultHtml = "<h3>跌幅榜</h3>";
+              lossResultHtml +=
+                "<table border='1'><tr><th>币种</th><th>跌幅 (%)</th><th>时间范围</th></tr>";
+              response.low_losses.forEach(function (item) {
+                lossResultHtml += `<tr><td>${item[0]}</td><td>${item[1].toFixed(
+                  2
+                )}</td><td>${item[2]}</td></tr>`;
+              });
+              lossResultHtml += "</table>";
+              $("#loss-table").html(lossResultHtml);
+            }
+          },
+          error: function () {
+            alert("获取数据失败！");
+          },
+        });
+      }
+
+      // 当 select 或 input 的值改变时触发数据更新
+      $("select, input").change(fetchCryptoData);
+
+      // 页面加载时立即请求一次数据，并每 4 秒刷新一次
+      $(document).ready(function () {
+        fetchCryptoData();
+        setInterval(fetchCryptoData, 4000);
+      });
+    </script>
+  </body>
+</html>
