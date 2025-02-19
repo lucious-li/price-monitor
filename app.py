@@ -220,13 +220,13 @@ def calculate_change_and_alert(symbol, time_range_seconds, gain_change_threshold
 @app.route('/crypto-prices', methods=['GET'])
 def crypto_prices_api():
     try:
-        gain_time_range = int(request.args.get("gain_time_range", 5))  # 单位：分钟
+        gain_time_range = int(request.args.get("gain_time_range", 2))  # 单位：分钟
         gain_change_threshold = float(
-            request.args.get("gain_change_threshold", 2))
+            request.args.get("gain_change_threshold", 1))
         loss_time_range = int(request.args.get(
-            "loss_time_range", 5))    # 单位：分钟
+            "loss_time_range", 2))    # 单位：分钟
         loss_change_threshold = float(
-            request.args.get("loss_change_threshold", 2))
+            request.args.get("loss_change_threshold", 1))
     except Exception as e:
         return jsonify({"error": "参数错误"}), 400
 
